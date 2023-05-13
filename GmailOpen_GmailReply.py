@@ -16,6 +16,7 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.readonly", 'https://www.googlea
 API_SERVICE_NAME = 'gmail'
 API_VERSION = 'v1'
 
+
 def get_message_body(message):
     message_payload = message['payload']
     headers = message_payload['headers']
@@ -56,7 +57,7 @@ def get_message_body(message):
     return {"sender": sender, "text": text, "subject": subject}
 
 
-def send_message(message_id, subject, message):
+def send_message(message_id, message):
     creds = None
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
@@ -67,16 +68,15 @@ def send_message(message_id, subject, message):
     gmail = googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=creds)
     message_encoded = gmail.users().messages().get(userId='me', id=message_id).execute()
 
-    sender = get_message_body(message_encoded)
-    sender = sender["sender"]
+    message_dict = get_message_body(message_encoded)
+    sender = message_dict["sender"]
 
     message = MIMEText(message)
     message['to'] = sender
-    message['subject'] = subject
+    message['subject'] = message_dict["subject"]
     raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
     try:
-        message = gmail.users().messages().send(userId='me', body={'raw': raw_message}).execute()
-        print(f'Message Id: {message["id"]}')
+        gmail.users().messages().send(userId='me', body={'raw': raw_message}).execute()
     except HttpError as error:
         print(f'An error occurred: {error}')
     return

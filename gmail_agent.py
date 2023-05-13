@@ -4,6 +4,10 @@ import flask
 import re
 import json
 
+from googleapiclient.errors import HttpError
+
+import summarize
+
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -81,12 +85,15 @@ def webhook_init():
     gmail = googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=creds)
 
     # Subscribe to the push from Google, in order to fully test you need a public https
-    request = {
-        'labelIds': ['INBOX'],
-        'topicName': 'projects/mailing-filter-with-ai/topics/id_for_mailing'
-     }
+    try:
+        request = {
+            'labelIds': ['INBOX'],
+            'topicName': 'projects/mailing-filter-with-ai/topics/id_for_mailing'
+        }
 
-    gmail.users().watch(userId='me', body=request).execute()
+        gmail.users().watch(userId='me', body=request).execute()
+    except HttpError as error:
+        print(f'An error occurred: {error}')
 
     return 'Subscription created'
 
@@ -112,8 +119,8 @@ def messages_handler():
     message_id = {"id": message_list[0]['id']}
     message_decode.update(message_id)
 
-
-    # process_message(message_decode["id"], message_decode["subject"], message_decode["text"], message_decode["sender"])
+    summarize.process_message(message_decode["id"], message_decode["sender"],
+                               message_decode["subject"], message_decode["text"])
 
     return message_decode
 
